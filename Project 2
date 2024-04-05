@@ -1,1 +1,75 @@
+clear
+close all
+clc
 
+BWfinal = [0,0,0];
+
+img = imread("IMG_1822.jpeg");
+imshow(img)
+
+[row,col,chan] = size(img);
+
+disp(['Image size: ', num2str(row), ' x ', num2str(col), ' x ', num2str(chan)]);
+
+segmented_image = segment_image(img);
+
+cm_per_pix = 15/2431;
+
+cm_squared = cm_per_pix.^2;
+
+test_area = bwarea(segmented_image);
+
+area_cm = test_area .* cm_squared;
+
+disp(['Area of pixels: ', num2str(test_area)])
+disp(['Area in cm: ', num2str(area_cm), ' cm'])
+
+%% image segmentation function
+function segmented_image = segment_image(I)
+
+% convert to greyscale
+img_gs = im2gray(I);
+
+% thresholding
+img_BW = img_gs >= 60;
+
+% opening
+se = strel("diamond",9);
+img_open = imopen(img_BW,se);
+
+% Find binary gradient
+[~,threshold] = edge(img_open,'sobel');
+fudgeFactor = 0.5;
+BWs = edge(img_open,'sobel',threshold * fudgeFactor);
+imshow(BWs)
+title('Binary Gradient Mask')
+
+% Connect lines
+se90 = strel('line',5,90);
+se0 = strel('line',5,0);
+BWsdil = imdilate(BWs,[se90 se0]);
+imshow(BWsdil)
+title('Dilated Gradient Mask')
+
+% Fill holes
+BWdfill = imfill(BWsdil,'holes');
+imshow(BWdfill)
+title('Binary image with filled holes')
+
+% delete border
+BWnobord = imclearborder(BWdfill,4);
+imshow(BWnobord);
+title('Cleared Border Image')
+
+% smooth edge
+seD = strel('diamond',1);
+BWfinal = imerode(BWnobord,seD);
+BWfinal = imerode(BWfinal,seD);
+imshow(BWfinal)
+title('Segmented Image');
+segmented_image = BWfinal;
+
+% overlay over original image
+imshow(labeloverlay(I,BWfinal))
+title('Mask Over Original Image')
+end
