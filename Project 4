@@ -1,0 +1,125 @@
+clear
+close all
+clc
+
+%% Image set-up and cropping
+[filename,pathname] = uigetfile({'*.jpg;*.png;*.bmp', ...
+    'Image Files (*.jpg, *.png, *.bmp)'}, 'Select an Image File');
+
+% Check if the user canceled the operation
+if isequal(filename,0) || isequal(pathname,0)
+    disp('Operation canceled by user.');
+else
+    % Concatenate the path and filename
+    fullFilePath = fullfile(pathname, filename);
+end
+    % Load the image
+    img = imread(fullFilePath);
+    imshow(img)
+
+img2 = imcrop(img);
+imshow(img2);
+
+img2_gs = im2gray(img2);
+imshow(img2_gs)
+
+se = strel("cube",4);
+img2_open = imopen(img2_gs,se);
+
+img2_bw = img2_open >= 60;
+imshow(img2_bw)
+
+%% Edge detection
+img2_canny = edge(img2_bw, "canny");
+
+se = strel('line', 11, 90);
+img2_final = imdilate(img2_canny,se);
+
+imshow(img2_final);
+
+% Perform Hough transform to detect lines
+[H, T, R] = hough(img2_final);
+P = houghpeaks(H, 5);  % Adjust the number of peaks as needed
+lines = houghlines(img2_final, T, R, P);
+
+
+% Calculate the length of each detected line
+total_length = 0;
+for k = 1:length(lines)
+    xy = [lines(k).point1; lines(k).point2];
+    line_length = norm(diff(xy));
+    total_length = total_length + line_length;
+    fprintf('Line %d length: %.2f pixels\n', k, line_length);
+end
+
+fprintf('Total length of lines: %.2f pixels\n', total_length);
+
+% Display original image with detected lines
+figure;
+imshow(1-img2_canny);
+hold on;
+for k = 1:length(lines)
+    xy = [lines(k).point1; lines(k).point2];
+    plot(xy(:,1), xy(:,2), 'LineWidth', 2, 'Color', 'red');
+    % Label the line with its number
+    text(xy(1,1), xy(1,2), num2str(k), 'Color', 'blue', 'FontSize', 12, 'FontWeight', 'bold');
+end
+title('Detected Lines');
+hold off;
+
+%% Compute length in cm
+maxlines = size(lines,2);
+
+% line ref
+i = input("Enter reference line: ");
+
+while i <= 0 || ~isequal(i, round(i)) || i > maxlines
+    disp("Invalid reference entry");
+    i = input("Enter reference line: ");
+end
+
+i = int32(i);
+
+% line mea
+j = input("Enter measuring line: ");
+
+while j <= 0 || ~isequal(j, round(j)) || j > maxlines
+    disp("Invalid measuring entry");
+    j = input("Enter measuring line: ");
+end
+
+j = int32(j);
+
+% Factor to convert pixels to cm
+conversion_factor = input("Enter the reference length in cm: ");
+
+while conversion_factor <= 0
+    disp("Invalid conversion factor")
+    conversion_factor = input("Enter the reference length in cm: ");
+end
+
+% ref x y dist
+ref1x = lines(i).point1(1,1);
+ref2x = lines(i).point2(1,1);
+refx = (ref2x-ref1x);
+
+ref1y = lines(i).point1(1,2);
+ref2y = lines(i).point2(1,2);
+refy = (ref2y-ref1y);
+
+% mea x y dist
+mea1x = lines(j).point1(1,1);
+mea2x = lines(j).point2(1,1);
+meax = mea2x-mea1x;
+
+mea1y = lines(j).point1(1,2);
+mea2y = lines(j).point2(1,2);
+meay = mea2y-mea1y;
+
+% Get line dist
+ref_dist = hypot(refx,refy);
+mea_dist = hypot(meax,meay);
+
+% Mea dist in cm
+cm_mea = (conversion_factor * mea_dist)/ref_dist;
+fprintf('Measured distance: %.2f cm', cm_mea);
