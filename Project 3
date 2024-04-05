@@ -1,0 +1,43 @@
+% Read the image
+image = imread("IMG_1586.jpg");
+
+% Convert the image to grayscale if it's a color image
+if size(image, 3) == 3
+    image = rgb2gray(image);
+end
+
+bw = image >= 70;
+
+% Perform edge detection using the Sobel operator
+edge_sobel = edge(bw, 'sobel');
+
+% Perform edge detection using the Canny operator
+edge_canny = edge(bw, 'canny');
+
+% Convert edge_sobel to double type
+edge_sobel = double(edge_sobel);
+
+% Generate membership function for edge detection
+x = linspace(0, 1, 100);
+edge_membership = gaussmf(x, [0.5 0.1]);
+
+% Apply fuzzy logic to detect edges
+edge_fuzzy = interp1(x, edge_membership, double(edge_sobel));  % Convert edge_sobel to double
+
+% Display original image and edges
+figure;
+subplot(1, 4, 1);
+imshow(image);
+title('Original Image');
+
+subplot(1, 4, 2);
+imshow(edge_sobel);
+title('Sobel Edge Detection');
+
+subplot(1, 4, 3);
+imshow(edge_canny);
+title('Canny Edge Detection');
+
+subplot(1,4,4);
+imshow(edge_fuzzy);
+title('Fuzzy Edge Detection');
