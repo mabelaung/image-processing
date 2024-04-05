@@ -1,0 +1,54 @@
+clear all
+close all
+clc
+
+% Initialize BWfinal
+BWfinal = [0,0,0];
+
+img = imread("IMG_1586.jpg");
+
+% Call segment_image function and pass BWfinal as an output argument
+BWfinal = segment_image(img, BWfinal);
+
+% Calculate area of pixels
+mask_area = bwarea(BWfinal);
+disp(mask_area);
+
+area_coin = mask_area/3;
+disp(area_coin);
+
+%% Image segmentation function
+function BWfinal = segment_image(I, BWfinal)
+
+% Convert to grayscale
+img_gs = im2gray(I);
+
+% Thresholding
+img_BW = img_gs >= 60;
+
+% Opening
+se = strel("diamond",9);
+img_open = imopen(img_BW,se);
+
+% Find binary gradient
+[~,threshold] = edge(img_open,'sobel');
+fudgeFactor = 0.5;
+BWs = edge(img_open,'sobel',threshold * fudgeFactor);
+
+% Connect lines
+se90 = strel('line',5,90);
+se0 = strel('line',5,0);
+BWsdil = imdilate(BWs,[se90 se0]);
+
+% Fill holes
+BWdfill = imfill(BWsdil,'holes');
+
+% Delete border
+BWnobord = imclearborder(BWdfill,4);
+
+% Smooth edge
+seD = strel('diamond',1);
+BWfinal = imerode(BWnobord,seD);
+BWfinal = imerode(BWfinal,seD);
+
+end
